@@ -43,7 +43,7 @@ def login(conn, cursor):
         if user and password == user[1]:
             current_user["id"] = user[0]
             current_user["username"] = username
-            print(f"✅ Login successful! Welcome, {username}")
+            print(f"\n✅ Login successful! 👋 Welcome, {username}")
         else:
             print("❌ Invalid username or password.")
 
