@@ -36,6 +36,14 @@ def display_portfolios():
 def create_portfolio():
     user_id = auth.current_user["id"]
     name = input("Enter a name for your new portfolio: ")
+    
+    # Check if a portfolio with the same name already exists for this user
+    query = "SELECT portfolio_id FROM Portfolio WHERE user_id = %s AND name = %s;"
+    cursor.execute(query, (user_id, name))
+    if cursor.fetchone():
+        print("❌ You already have a portfolio with that name. Please choose a different name.")
+        return
+
     initial_balance = 0.00  # Starting cash balance can be adjusted as needed
     query = "INSERT INTO Portfolio (user_id, name, cash_balance) VALUES (%s, %s, %s) RETURNING portfolio_id;"
     cursor.execute(query, (user_id, name, initial_balance))
