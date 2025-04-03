@@ -1,6 +1,4 @@
-import time
-
-
+from time import sleep
 current_user = {"id": None, "username": None}
 
 def signup(conn, cursor):
@@ -13,6 +11,7 @@ def signup(conn, cursor):
     existing_user = cursor.fetchone()
     if existing_user:
         print("❌ Error: Username already taken. Please choose a different username.")
+        sleep(1)
         return
 
     try:
@@ -23,6 +22,7 @@ def signup(conn, cursor):
         user_id = cursor.fetchone()[0]
         conn.commit()
         print("✅ Signup successful!")
+        sleep(1)
 
         current_user["id"] = user_id
         current_user["username"] = username
@@ -44,8 +44,10 @@ def login(conn, cursor):
             current_user["id"] = user[0]
             current_user["username"] = username
             print(f"\n✅ Login successful! 👋 Welcome, {username}")
+            sleep(1)
         else:
             print("❌ Invalid username or password.")
+            sleep(1)
 
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -55,4 +57,4 @@ def logout():
     current_user["id"] = None
     current_user["username"] = None
     print("🔓 You have been logged out.")
-    time.sleep(1)
+    sleep(1)

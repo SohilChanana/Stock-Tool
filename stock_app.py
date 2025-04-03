@@ -1,25 +1,30 @@
 import auth
 from db import conn, cursor
-import portfolio  # Import the portfolio functionality
-import time
+from time import sleep
+import portfolio_list_view  # Import the portfolio functionality
+import stocks     # Import the stocks functionality
 
 def main_menu():
     while True:
         if auth.current_user["username"]:
             print("\nPlease choose an option:")
-            print("1. 🔓 Logout")
-            print("2. 📁 View Portfolios")
-            print("3. ❌ Close Application")
+            print("1. 📁 View Portfolios")
+            print("2. 🗓️  Add Daily Stock Data")
+            print("3. 🔓 Logout")
+            print("4. ❌ Close Application")
             choice = input("Choose an option: ")
             
             if choice == "1":
-                auth.logout()
+                portfolio_list_view.portfolio_menu()
             elif choice == "2":
-                portfolio.portfolio_menu()  # Call the portfolio functionality
+                stocks.add_daily_stock_data()
             elif choice == "3":
+                auth.logout()
+            elif choice == "4":
                 break
             else:
                 print("❌ Invalid option, try again.")
+                sleep(1)
         else:
             print("\n📈 Welcome to the Stock Tool!")
             print("Please choose an option:")
@@ -44,4 +49,4 @@ if __name__ == "__main__":
         cursor.close()
         conn.close()
         print("⛔ Application closed.\n")
-        time.sleep(1)
+        sleep(1)

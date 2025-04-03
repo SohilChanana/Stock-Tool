@@ -44,7 +44,7 @@ def create_portfolio():
         print("❌ You already have a portfolio with that name. Please choose a different name.")
         return
 
-    initial_balance = 0.00  # Starting cash balance can be adjusted as needed
+    initial_balance = 0.00
     query = "INSERT INTO Portfolio (user_id, name, cash_balance) VALUES (%s, %s, %s) RETURNING portfolio_id;"
     cursor.execute(query, (user_id, name, initial_balance))
     portfolio_id = cursor.fetchone()[0]
