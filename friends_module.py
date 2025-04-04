@@ -132,7 +132,27 @@ def view_friends(username):
     for friend in friends:
         print(f"- {friend[0]} (Since: {friend[1]})")
 
-2
+def delete_friend(username, friend_username):
+    # Fetch user_id of the current user
+    cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+    user = cursor.fetchone()
+    
+    if not user:
+        print("❌ User not found.")
+        return
+    
+    # Fetch user_id of the friend to delete
+    cursor.execute("SELECT user_id FROM users WHERE username = %s", (friend_username,))
+    friend = cursor.fetchone()
+    
+    if not friend:
+        print("❌ Friend not found.")
+        return
+
+    user_id, friend_id = user[0], friend[0]
+
+    # Check if they are actually friends
+    cursor.execute("""
         SELECT * FROM FRIENDSHIP
         WHERE (user_id1 = %s AND user_id2 = %s) OR (user_id1 = %s AND user_id2 = %s)
     """, (user_id, friend_id, friend_id, user_id))
