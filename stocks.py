@@ -2,6 +2,8 @@ import auth
 from db import conn, cursor
 from datetime import datetime, timedelta
 from time import sleep
+import plotext as plt
+
 
 def add_daily_stock_data():
     # Prompt for stock symbol and validate its length.
@@ -258,3 +260,70 @@ def sell_stock(portfolio_id):
 
     conn.commit()
     print("✅ Sale completed successfully.")
+    
+def view_historical_stock_prices():
+    """View historical stock prices for a given symbol and time interval."""
+
+    # Ask for the stock symbol.
+    symbol = input("Enter the stock symbol to view historical prices: ").upper()
+    
+    # Get the most recent trade date for the symbol.
+    cursor.execute("SELECT MAX(trade_date) FROM Daily_Stock_Price WHERE symbol = %s;", (symbol,))
+    latest_date_row = cursor.fetchone()
+    if not latest_date_row or not latest_date_row[0]:
+        print("❌ No historical data found for this symbol.")
+        return
+    latest_date = latest_date_row[0]
+    
+    # Ask the user for the desired time interval.
+    print("Select the time interval:")
+    print("1. Week")
+    print("2. Month")
+    print("3. Quarter")
+    print("4. Year")
+    print("5. 5 Years")
+    interval_choice = input("Choose an option (1-5): ")
+    
+    if interval_choice == "1":
+        delta = timedelta(days=7)
+    elif interval_choice == "2":
+        delta = timedelta(days=30)
+    elif interval_choice == "3":
+        delta = timedelta(days=90)
+    elif interval_choice == "4":
+        delta = timedelta(days=365)
+    elif interval_choice == "5":
+        delta = timedelta(days=5*365)
+    else:
+        print("❌ Invalid interval choice.")
+        return
+    
+    start_date = latest_date - delta
+
+    # Query historical data between start_date and the latest available date.
+    query = """
+        SELECT trade_date, close FROM Daily_Stock_Price
+        WHERE symbol = %s AND trade_date BETWEEN %s AND %s
+        ORDER BY trade_date ASC;
+    """
+    cursor.execute(query, (symbol, start_date, latest_date))
+    data = cursor.fetchall()
+    if not data:
+        print("❌ No data available for the selected interval.")
+        return
+    
+    # Prepare data for plotting.
+    dates = [row[0] for row in data]
+    prices = [row[1] for row in data]
+    # Convert date objects to strings.
+    dates_str = [d.strftime("%Y-%m-%d") for d in dates]
+    
+    # Plot using plotext.
+    plt.clear_figure()
+    plt.date_form('Y-m-d')
+    plt.plot(dates_str, prices, marker="hd", color="green", )
+    plt.title(f"Historical Prices for {symbol}")
+    plt.xlabel("Trade Date")
+    plt.ylabel("Close Price")
+    plt.theme("dark")
+    plt.show()

@@ -2,6 +2,7 @@ import auth
 from db import conn, cursor
 import stocks
 from time import sleep
+from datetime import timedelta
 
 def view_portfolio_menu(portfolio_id):
     while True:
@@ -47,14 +48,14 @@ def view_portfolio_menu(portfolio_id):
         print(f"\n🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}")
         print("----------------------------")
 
-        # Display portfolio view menu with the new options for buying and selling stocks.
+        # Display portfolio view menu with updated options.
         print("\n📊 Portfolio View Menu:")
         print("1. 💰 Deposit Cash")
         print("2. 💸 Withdraw Cash")
         print("3. 🛒 Buy Stock")
-        print("4. 🏷️ Sell Stock")
+        print("4. 🏷️  Sell Stock")
         print("5. 📈 View Portfolio Stats (Not implemented yet)")
-        print("6. ⏳ View Historical Stock Prices (Not implemented yet)")
+        print("6. ⏳ View Historical Stock Prices")
         print("7. 🔮 View Future Stock Prices (Not implemented yet)")
         print("8. 🔙 Go Back")
         
@@ -68,7 +69,12 @@ def view_portfolio_menu(portfolio_id):
             stocks.buy_stock(portfolio_id)
         elif choice == "4":
             stocks.sell_stock(portfolio_id)
-        elif choice in ("5", "6", "7"):
+        elif choice == "5":
+            print("Option not implemented yet.")
+            sleep(1)
+        elif choice == "6":
+            stocks.view_historical_stock_prices()
+        elif choice == "7":
             print("Option not implemented yet.")
             sleep(1)
         elif choice == "8":
@@ -135,3 +141,5 @@ def withdraw_cash(portfolio_id):
     except ValueError:
         print("❌ Invalid amount.")
         sleep(1)
+
+
