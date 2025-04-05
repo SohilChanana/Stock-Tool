@@ -3,7 +3,6 @@ from db import conn, cursor
 import portfolio_view
 from time import sleep
 
-
 def portfolio_menu():
     while True:
         # Display the user's current portfolios and capture them
@@ -39,14 +38,12 @@ def display_portfolios():
     if portfolios:
         print("\n----------------------------")
         print("Your Portfolios:")
-        # Number each portfolio for easier selection
-        for idx, portfolio in enumerate(portfolios, start=1):
-            print(f"{idx}. Name: {portfolio[1]}, Cash Balance: ${float(portfolio[2]):,.2f}")
+        for portfolio in portfolios:
+            print(f"Name: {portfolio[1]}, Cash Balance: ${float(portfolio[2]):,.2f}")
     else:
         print("\nYou have no portfolios yet.")
     print("----------------------------")
     return portfolios
-
 
 def create_portfolio():
     user_id = auth.current_user["id"]
@@ -68,19 +65,17 @@ def create_portfolio():
     print(f"✅ Portfolio '{name}' created successfully")
     sleep(1)
     
-
 def open_portfolio(portfolios):
-    choice = input("Enter the number of the portfolio you want to open: ")
-    try:
-        index = int(choice)
-        if 1 <= index <= len(portfolios):
-            portfolio_id = portfolios[index - 1][0]
-            # Import the new portfolio view and display the chosen portfolio
-            portfolio_view.view_portfolio_menu(portfolio_id)
-        else:
-            print("❌ Invalid portfolio number.")
-            sleep(1)
-    except ValueError:
-        print("❌ Please enter a valid number.")
-        sleep(1)
-
+    # Instead of picking a number, ask the user for the portfolio name
+    name = input("Enter the name of the portfolio you want to open: ")
+    matched_portfolio = None
+    for portfolio in portfolios:
+         if portfolio[1].lower() == name.lower():
+              matched_portfolio = portfolio
+              break
+    if matched_portfolio:
+         portfolio_id = matched_portfolio[0]
+         portfolio_view.view_portfolio_menu(portfolio_id)
+    else:
+         print("❌ Portfolio name not found. Please check the name and try again.")
+         sleep(1)

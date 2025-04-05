@@ -1,5 +1,6 @@
 import auth
 from db import conn, cursor
+import stocks
 from time import sleep
 
 def view_portfolio_menu(portfolio_id):
@@ -13,32 +14,33 @@ def view_portfolio_menu(portfolio_id):
             return
 
         name, cash_balance = result
-        print(f"\n📂 Portfolio: {name}")
+        print("\n----------------------------")
+        print(f"📂 Portfolio: {name}")
         print(f"💵 Cash Balance: ${float(cash_balance):,.2f}")
 
         # Refresh and display stocks in this portfolio
         query = "SELECT symbol, shares FROM Portfolio_Contains WHERE portfolio_id = %s;"
         cursor.execute(query, (portfolio_id,))
-        stocks = cursor.fetchall()
+        stocks_in_portfolio = cursor.fetchall()
         
-        if stocks:
-            print("\n----------------------------")
+        if stocks_in_portfolio:
             print("Stocks in Portfolio:")
-            for symbol, shares in stocks:
+            for symbol, shares in stocks_in_portfolio:
                 print(f"- {symbol}: {shares} shares")
         else:
             print("\nNo stocks in this portfolio.")
         print("----------------------------")
 
-        # Display portfolio view menu with additional options
+        # Display portfolio view menu with the new options for buying and selling stocks.
         print("\n📊 Portfolio View Menu:")
         print("1. 💰 Deposit Cash")
         print("2. 💸 Withdraw Cash")
-        print("3. 🛒 Buy Stock (Not implemented yet)")
-        print("4. 📈 View Portfolio Stats (Not implemented yet)")
-        print("5. ⏳ View Historical Stock Prices (Not implemented yet)")
-        print("6. 🔮 View Future Stock Prices (Not implemented yet)")
-        print("7. 🔙 Go Back")
+        print("3. 🛒 Buy Stock")
+        print("4. 🏷️ Sell Stock")
+        print("5. 📈 View Portfolio Stats (Not implemented yet)")
+        print("6. ⏳ View Historical Stock Prices (Not implemented yet)")
+        print("7. 🔮 View Future Stock Prices (Not implemented yet)")
+        print("8. 🔙 Go Back")
         
         choice = input("Choose an option: ")
         
@@ -46,14 +48,19 @@ def view_portfolio_menu(portfolio_id):
             deposit_cash(portfolio_id)
         elif choice == "2":
             withdraw_cash(portfolio_id)
-        elif choice in ("3", "4", "5", "6"):
+        elif choice == "3":
+            stocks.buy_stock(portfolio_id)
+        elif choice == "4":
+            stocks.sell_stock(portfolio_id)
+        elif choice in ("5", "6", "7"):
             print("Option not implemented yet.")
             sleep(1)
-        elif choice == "7":
+        elif choice == "8":
             break
         else:
             print("❌ Invalid option, please try again.")
             sleep(1)
+
 
 def deposit_cash(portfolio_id):
     try:

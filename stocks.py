@@ -102,3 +102,159 @@ def add_daily_stock_data():
         print("❌ Failed to add daily stock data:", e)
         sleep(1)
 
+def buy_stock(portfolio_id):
+    # Prompt for stock symbol
+    symbol = input("Enter the stock symbol you want to buy: ").upper()
+    
+    # Check if the stock exists in the Stock table.
+    cursor.execute("SELECT symbol FROM Stock WHERE symbol = %s;", (symbol,))
+    if not cursor.fetchone():
+        print("❌ Stock does not exist in our system.")
+        return
+
+    # Ask for number of shares.
+    try:
+        shares = int(input("Enter the number of shares to buy: "))
+        if shares <= 0:
+            print("❌ Number of shares must be greater than 0.")
+            return
+    except ValueError:
+        print("❌ Invalid input for number of shares.")
+        return
+
+    # Get the most recent close price for the stock.
+    cursor.execute(
+        "SELECT close FROM Daily_Stock_Price WHERE symbol = %s ORDER BY trade_date DESC LIMIT 1;",
+        (symbol,)
+    )
+    price_result = cursor.fetchone()
+    if not price_result:
+        print("❌ No stock price data available for this symbol.")
+        return
+    close_price = price_result[0]
+    total_cost = close_price * shares
+
+    print(f"Stock: {symbol}, Shares: {shares}, Price per share: ${close_price:.2f}, Total cost: ${total_cost:.2f}")
+    confirm = input("Do you want to confirm the purchase? (y/n): ").lower()
+    if confirm != 'y':
+        print("❌ Purchase cancelled.")
+        return
+
+    # Check if the portfolio has enough cash.
+    cursor.execute("SELECT cash_balance FROM Portfolio WHERE portfolio_id = %s;", (portfolio_id,))
+    portfolio = cursor.fetchone()
+    if not portfolio:
+        print("❌ Portfolio not found.")
+        return
+    cash_balance = float(portfolio[0])
+    if cash_balance < total_cost:
+        print("❌ Insufficient funds to complete this purchase.")
+        return
+
+    # Insert the transaction into Stock_Transaction.
+    cursor.execute(
+        "INSERT INTO Stock_Transaction (portfolio_id, symbol, date, type, shares, price) VALUES (%s, %s, CURRENT_DATE, 'buy', %s, %s) RETURNING transaction_id;",
+        (portfolio_id, symbol, shares, close_price)
+    )
+
+    # Update the Portfolio_Contains table.
+    cursor.execute(
+        "SELECT shares FROM Portfolio_Contains WHERE portfolio_id = %s AND symbol = %s;",
+        (portfolio_id, symbol)
+    )
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute(
+            "UPDATE Portfolio_Contains SET shares = shares + %s WHERE portfolio_id = %s AND symbol = %s;",
+            (shares, portfolio_id, symbol)
+        )
+    else:
+        cursor.execute(
+            "INSERT INTO Portfolio_Contains (portfolio_id, symbol, shares) VALUES (%s, %s, %s);",
+            (portfolio_id, symbol, shares)
+        )
+
+    # Deduct the total cost from the portfolio cash balance.
+    cursor.execute(
+        "UPDATE Portfolio SET cash_balance = cash_balance - %s WHERE portfolio_id = %s;",
+        (total_cost, portfolio_id)
+    )
+
+    conn.commit()
+    print("✅ Purchase completed successfully.")
+
+
+def sell_stock(portfolio_id):
+    # Prompt for the stock symbol.
+    symbol = input("Enter the stock symbol you want to sell: ").upper()
+    
+    # Check if the portfolio owns this stock.
+    cursor.execute(
+        "SELECT shares FROM Portfolio_Contains WHERE portfolio_id = %s AND symbol = %s;",
+        (portfolio_id, symbol)
+    )
+    result = cursor.fetchone()
+    if not result:
+        print("❌ You do not own any shares of this stock.")
+        return
+    owned_shares = result[0]
+
+    # Ask for number of shares to sell.
+    try:
+        shares = int(input("Enter the number of shares to sell: "))
+        if shares <= 0:
+            print("❌ Number of shares must be greater than 0.")
+            return
+    except ValueError:
+        print("❌ Invalid input for number of shares.")
+        return
+
+    if shares > owned_shares:
+        print("❌ You do not own enough shares to complete this sale.")
+        return
+
+    # Get the most recent close price for the stock.
+    cursor.execute(
+        "SELECT close FROM Daily_Stock_Price WHERE symbol = %s ORDER BY trade_date DESC LIMIT 1;",
+        (symbol,)
+    )
+    price_result = cursor.fetchone()
+    if not price_result:
+        print("❌ No stock price data available for this symbol.")
+        return
+    close_price = price_result[0]
+    total_value = close_price * shares
+
+    print(f"Stock: {symbol}, Shares: {shares}, Price per share: ${close_price:.2f}, Total value: ${total_value:.2f}")
+    confirm = input("Do you want to confirm the sale? (y/n): ").lower()
+    if confirm != 'y':
+        print("❌ Sale cancelled.")
+        return
+
+    # Insert the transaction into Stock_Transaction.
+    cursor.execute(
+        "INSERT INTO Stock_Transaction (portfolio_id, symbol, date, type, shares, price) VALUES (%s, %s, CURRENT_DATE, 'sell', %s, %s) RETURNING transaction_id;",
+        (portfolio_id, symbol, shares, close_price)
+    )
+
+    # Update the Portfolio_Contains table.
+    new_share_count = owned_shares - shares
+    if new_share_count > 0:
+        cursor.execute(
+            "UPDATE Portfolio_Contains SET shares = %s WHERE portfolio_id = %s AND symbol = %s;",
+            (new_share_count, portfolio_id, symbol)
+        )
+    else:
+        cursor.execute(
+            "DELETE FROM Portfolio_Contains WHERE portfolio_id = %s AND symbol = %s;",
+            (portfolio_id, symbol)
+        )
+
+    # Add the proceeds to the portfolio cash balance.
+    cursor.execute(
+        "UPDATE Portfolio SET cash_balance = cash_balance + %s WHERE portfolio_id = %s;",
+        (total_value, portfolio_id)
+    )
+
+    conn.commit()
+    print("✅ Sale completed successfully.")
