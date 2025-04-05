@@ -18,17 +18,33 @@ def view_portfolio_menu(portfolio_id):
         print(f"📂 Portfolio: {name}")
         print(f"💵 Cash Balance: ${float(cash_balance):,.2f}")
 
-        # Refresh and display stocks in this portfolio
+        # Calculate the current market value of stocks in the portfolio.
+        total_stocks_value = 0.0
         query = "SELECT symbol, shares FROM Portfolio_Contains WHERE portfolio_id = %s;"
         cursor.execute(query, (portfolio_id,))
         stocks_in_portfolio = cursor.fetchall()
         
         if stocks_in_portfolio:
-            print("Stocks in Portfolio:")
+            print("\nStocks in Portfolio:")
             for symbol, shares in stocks_in_portfolio:
-                print(f"- {symbol}: {shares} shares")
+                # Get the most recent close price for the stock.
+                cursor.execute(
+                    "SELECT close FROM Daily_Stock_Price WHERE symbol = %s ORDER BY trade_date DESC LIMIT 1;",
+                    (symbol,)
+                )
+                price_result = cursor.fetchone()
+                if price_result:
+                    close_price = price_result[0]
+                else:
+                    close_price = 0.0
+                stock_value = shares * close_price
+                total_stocks_value += stock_value
+                print(f"- {symbol}: {shares} shares, Share Price: ${close_price:,.2f}")
         else:
             print("\nNo stocks in this portfolio.")
+
+        total_portfolio_value = float(cash_balance) + total_stocks_value
+        print(f"\n🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}")
         print("----------------------------")
 
         # Display portfolio view menu with the new options for buying and selling stocks.
@@ -85,6 +101,7 @@ def deposit_cash(portfolio_id):
     except ValueError:
         print("❌ Invalid amount.")
         sleep(1)
+
 
 def withdraw_cash(portfolio_id):
     try:
