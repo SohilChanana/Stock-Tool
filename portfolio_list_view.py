@@ -37,13 +37,16 @@ def display_portfolios():
     portfolios = cursor.fetchall()
     
     if portfolios:
-        print("\nYour Portfolios:")
+        print("\n----------------------------")
+        print("Your Portfolios:")
         # Number each portfolio for easier selection
         for idx, portfolio in enumerate(portfolios, start=1):
             print(f"{idx}. Name: {portfolio[1]}, Cash Balance: ${float(portfolio[2]):,.2f}")
     else:
         print("\nYou have no portfolios yet.")
+    print("----------------------------")
     return portfolios
+
 
 def create_portfolio():
     user_id = auth.current_user["id"]

@@ -22,11 +22,13 @@ def view_portfolio_menu(portfolio_id):
         stocks = cursor.fetchall()
         
         if stocks:
-            print("\nStocks in Portfolio:")
+            print("\n----------------------------")
+            print("Stocks in Portfolio:")
             for symbol, shares in stocks:
                 print(f"- {symbol}: {shares} shares")
         else:
             print("\nNo stocks in this portfolio.")
+        print("----------------------------")
 
         # Display portfolio view menu with additional options
         print("\n📊 Portfolio View Menu:")
