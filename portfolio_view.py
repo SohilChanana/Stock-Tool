@@ -48,16 +48,17 @@ def view_portfolio_menu(portfolio_id):
         print(f"\n🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}")
         print("----------------------------")
 
-        # Display portfolio view menu with updated options.
+        # Updated portfolio view menu with Transfer Funds option.
         print("\n📊 Portfolio View Menu:")
         print("1. 💰 Deposit Cash")
         print("2. 💸 Withdraw Cash")
-        print("3. 🛒 Buy Stock")
-        print("4. 🏷️  Sell Stock")
-        print("5. 📈 View Portfolio Stats (Not implemented yet)")
-        print("6. ⏳ View Historical Stock Prices")
-        print("7. 🔮 View Future Stock Prices (Not implemented yet)")
-        print("8. 🔙 Go Back")
+        print("3. 💱 Transfer Funds")
+        print("4. 🛒 Buy Stock")
+        print("5. 🏷️  Sell Stock")
+        print("6. 📈 View Portfolio Stats (Not implemented yet)")
+        print("7. ⏳ View Historical Stock Prices")
+        print("8. 🔮 View Future Stock Prices (Not implemented yet)")
+        print("9. 🔙 Go Back")
         
         choice = input("Choose an option: ")
         
@@ -66,18 +67,20 @@ def view_portfolio_menu(portfolio_id):
         elif choice == "2":
             withdraw_cash(portfolio_id)
         elif choice == "3":
-            stocks.buy_stock(portfolio_id)
+            transfer_funds(portfolio_id)
         elif choice == "4":
-            stocks.sell_stock(portfolio_id)
+            stocks.buy_stock(portfolio_id)
         elif choice == "5":
-            print("Option not implemented yet.")
-            sleep(1)
+            stocks.sell_stock(portfolio_id)
         elif choice == "6":
-            stocks.view_historical_stock_prices()
-        elif choice == "7":
             print("Option not implemented yet.")
             sleep(1)
+        elif choice == "7":
+            stocks.view_historical_stock_prices()
         elif choice == "8":
+            print("Option not implemented yet.")
+            sleep(1)
+        elif choice == "9":
             break
         else:
             print("❌ Invalid option, please try again.")
@@ -143,3 +146,65 @@ def withdraw_cash(portfolio_id):
         sleep(1)
 
 
+def transfer_funds(portfolio_id):
+    # Get the current portfolio's cash balance.
+    query = "SELECT cash_balance FROM Portfolio WHERE portfolio_id = %s;"
+    cursor.execute(query, (portfolio_id,))
+    current_balance_row = cursor.fetchone()
+    if not current_balance_row:
+        print("❌ Current portfolio not found.")
+        return
+    current_balance = float(current_balance_row[0])
+    
+    # Ask for the target portfolio name.
+    target_name = input("Enter the name of the portfolio to transfer funds to: ").strip()
+    # Assume the target portfolio belongs to the same user.
+    user_id = auth.current_user["id"]
+    query = "SELECT portfolio_id FROM Portfolio WHERE name = %s AND user_id = %s;"
+    cursor.execute(query, (target_name, user_id))
+    target_row = cursor.fetchone()
+    if not target_row:
+        print("❌ Target portfolio not found.")
+        return
+    target_portfolio_id = target_row[0]
+    if target_portfolio_id == portfolio_id:
+        print("❌ Cannot transfer funds to the same portfolio.")
+        return
+    
+    # Ask for the amount to transfer.
+    try:
+        amount = float(input("Enter the amount to transfer: "))
+        if amount <= 0:
+            print("❌ Amount must be positive.")
+            return
+    except ValueError:
+        print("❌ Invalid amount.")
+        return
+    
+    # Check if the current portfolio has sufficient funds.
+    if amount > current_balance:
+        print("❌ Insufficient funds to complete this transfer.")
+        return
+    
+    # Ask for confirmation.
+    confirm = input(f"Confirm transfer of ${amount:,.2f} to portfolio '{target_name}'? (y/n): ").lower()
+    if confirm != 'y':
+        print("❌ Transfer cancelled.")
+        return
+    
+    # Deduct funds from the current portfolio.
+    update_source = "UPDATE Portfolio SET cash_balance = cash_balance - %s WHERE portfolio_id = %s;"
+    cursor.execute(update_source, (amount, portfolio_id))
+    # Add funds to the target portfolio.
+    update_target = "UPDATE Portfolio SET cash_balance = cash_balance + %s WHERE portfolio_id = %s;"
+    cursor.execute(update_target, (amount, target_portfolio_id))
+    # Insert a cash transaction record with type 'transfer' and transfer_dest_id.
+    insert_transaction = """
+        INSERT INTO Cash_Transaction (portfolio_id, type, amount, date, transfer_dest_id)
+        VALUES (%s, 'transfer', %s, CURRENT_DATE, %s);
+    """
+    cursor.execute(insert_transaction, (portfolio_id, amount, target_portfolio_id))
+    
+    conn.commit()
+    print(f"✅ Transferred ${amount:,.2f} to portfolio '{target_name}' successfully.")
+    sleep(1)
