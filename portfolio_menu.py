@@ -54,7 +54,7 @@ def view_portfolio_menu(portfolio_id):
         print("2. 💸 Withdraw Cash")
         print("3. 💱 Transfer Funds")
         print("4. 🛒 Buy Stock")
-        print("5. 🏷️  Sell Stock")
+        print("5. 🏷️ Sell Stock")
         print("6. 📈 View Portfolio Stats (Not implemented yet)")
         print("7. ⏳ View Historical Stock Prices")
         print("8. 🔮 View Future Stock Prices (Not implemented yet)")

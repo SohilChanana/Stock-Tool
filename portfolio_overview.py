@@ -1,6 +1,6 @@
 import auth
 from db import conn, cursor
-import portfolio_view
+import portfolio_menu
 from time import sleep
 
 def portfolio_menu():
@@ -35,13 +35,13 @@ def display_portfolios():
     cursor.execute(query, (user_id,))
     portfolios = cursor.fetchall()
     
+    print("\n----------------------------")
     if portfolios:
-        print("\n----------------------------")
         print("Your Portfolios:")
         for portfolio in portfolios:
             print(f"Name: {portfolio[1]}, Cash Balance: ${float(portfolio[2]):,.2f}")
     else:
-        print("\nYou have no portfolios yet.")
+        print("You have no portfolios yet.")
     print("----------------------------")
     return portfolios
 
@@ -75,7 +75,7 @@ def open_portfolio(portfolios):
               break
     if matched_portfolio:
          portfolio_id = matched_portfolio[0]
-         portfolio_view.view_portfolio_menu(portfolio_id)
+         portfolio_menu.view_portfolio_menu(portfolio_id)
     else:
          print("❌ Portfolio name not found. Please check the name and try again.")
          sleep(1)
