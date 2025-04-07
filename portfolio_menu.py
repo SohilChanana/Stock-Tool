@@ -57,7 +57,7 @@ def view_portfolio_menu(portfolio_id):
         print("5. 🏷️ Sell Stock")
         print("6. 📈 View Portfolio Stats (Not implemented yet)")
         print("7. ⏳ View Historical Stock Prices")
-        print("8. 🔮 View Future Stock Prices (Not implemented yet)")
+        print("8. 🔮 Predict Future Stock Prices")
         print("9. 🔙 Go Back")
         
         choice = input("Choose an option: ")
@@ -78,8 +78,7 @@ def view_portfolio_menu(portfolio_id):
         elif choice == "7":
             stocks.view_historical_stock_prices()
         elif choice == "8":
-            print("Option not implemented yet.")
-            sleep(1)
+            stocks.view_future_stock_prices()
         elif choice == "9":
             break
         else:
@@ -144,7 +143,6 @@ def withdraw_cash(portfolio_id):
     except ValueError:
         print("❌ Invalid amount.")
         sleep(1)
-
 
 def transfer_funds(portfolio_id):
     # Get the current portfolio's cash balance.

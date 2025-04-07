@@ -3,7 +3,7 @@ from db import conn, cursor
 import portfolio_menu
 from time import sleep
 
-def portfolio_menu():
+def portfolio_overview_menu():
     while True:
         # Display the user's current portfolios and capture them
         portfolios = display_portfolios()

@@ -21,7 +21,7 @@ def main_menu():
             choice = input("Choose an option: ")
             
             if choice == "1":
-                portfolio_overview.portfolio_menu()
+                portfolio_overview.portfolio_overview_menu()
             elif choice == "2":
                 stock_list_overview.stock_list_menu_view()
             elif choice == "3":

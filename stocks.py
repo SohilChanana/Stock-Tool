@@ -3,7 +3,8 @@ from db import conn, cursor
 from datetime import datetime, timedelta
 from time import sleep
 import plotext as plt
-
+import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 def add_daily_stock_data():
     # Prompt for stock symbol and validate its length.
@@ -325,5 +326,90 @@ def view_historical_stock_prices():
     plt.title(f"Historical Prices for {symbol}")
     plt.xlabel("Trade Date")
     plt.ylabel("Close Price")
+    plt.theme("dark")
+    plt.show()
+    
+def view_future_stock_prices():
+    """View future stock prices for a given symbol using a simple linear regression model."""
+    # Ask for the stock symbol.
+    symbol = input("Enter the stock symbol to view future prices: ").upper()
+    
+    # Get the latest available trade date for the symbol.
+    cursor.execute("SELECT MAX(trade_date) FROM Daily_Stock_Price WHERE symbol = %s;", (symbol,))
+    latest_date_row = cursor.fetchone()
+    if not latest_date_row or not latest_date_row[0]:
+        print("❌ No historical data found for this symbol.")
+        return
+    latest_date = latest_date_row[0]
+    
+    # Ask for the desired future time interval.
+    print("Select the future time interval:")
+    print("1. Week")
+    print("2. Month")
+    print("3. Quarter")
+    print("4. Year")
+    print("5. 5 Years")
+    interval_choice = input("Choose an option (1-5): ")
+    
+    # Generate future dates based on the selected interval.
+    if interval_choice == "1":
+        # For one week: daily data (7 days).
+        future_dates = [latest_date + timedelta(days=i) for i in range(1, 8)]
+    elif interval_choice == "2":
+        # For one month: weekly data (4 data points).
+        future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=4, freq='W').to_pydatetime().tolist()
+    elif interval_choice == "3":
+        # For one quarter: weekly data (approximately 13 data points).
+        future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=13, freq='W').to_pydatetime().tolist()
+    elif interval_choice == "4":
+        # For one year: monthly data (12 data points).
+        future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=12, freq='MS').to_pydatetime().tolist()
+    elif interval_choice == "5":
+        # For 5 years: monthly data (60 data points).
+        future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=60, freq='MS').to_pydatetime().tolist()
+    else:
+        print("❌ Invalid interval choice.")
+        return
+    
+    # Query all historical data for the given stock symbol.
+    query = """
+        SELECT trade_date, close FROM Daily_Stock_Price
+        WHERE symbol = %s
+        ORDER BY trade_date ASC;
+    """
+    cursor.execute(query, (symbol,))
+    data = cursor.fetchall()
+    if not data:
+        print("❌ No historical data available for this symbol.")
+        return
+    
+    # Prepare the data for linear regression.
+    df = pd.DataFrame(data, columns=["trade_date", "close"])
+    # Convert trade_date to an ordinal number (numeric format) for regression.
+    df["date_ordinal"] = df["trade_date"].apply(lambda x: x.toordinal())
+    
+    X = df["date_ordinal"].values.reshape(-1, 1)
+    y = df["close"].values
+    
+    # Fit a linear regression model.
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    # Generate predictions for the future dates.
+    future_ordinals = [d.toordinal() for d in future_dates]
+    X_future = pd.DataFrame(future_ordinals)
+    predictions = model.predict(X_future)
+    
+    # Prepare data for plotting.
+    future_dates_str = [d.strftime("%Y-%m-%d") for d in future_dates]
+    future_prices = predictions.tolist()
+    
+    # Plot the forecast using plotext (similar to the historical data plot).
+    plt.clear_figure()
+    plt.date_form('Y-m-d')
+    plt.plot(future_dates_str, future_prices, marker="hd", color="yellow")
+    plt.title(f"Future Prices for {symbol} (Linear Regression Forecast)")
+    plt.xlabel("Date")
+    plt.ylabel("Predicted Close Price")
     plt.theme("dark")
     plt.show()
