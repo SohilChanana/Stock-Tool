@@ -70,7 +70,7 @@ def view_stock_list_menu(list_id, is_creator):
                 print("Option not implemented yet.")
                 sleep(1)
             elif choice == "5":
-                review_menu(list_id, auth.current_user["id"], conn)
+                review_menu(list_id)
             elif choice == "6":
                 if delete_list(list_id):
                     # Once deleted, exit the menu.
@@ -90,7 +90,7 @@ def view_stock_list_menu(list_id, is_creator):
                 sleep(1)
 
             if choice == "2":
-                review_menu(list_id, auth.current_user["id"], conn)
+                review_menu(list_id)
             
             elif choice == "3":
                 break
@@ -227,31 +227,31 @@ def delete_list(list_id):
 
 ################# Review Functionality ##############################
 
-def review_menu(list_id, current_user_id, conn):
+def review_menu(list_id):
     """
     Displays a sub-menu for managing reviews with emoji-enhanced options.
     """
     while True:
         print("\n📝 Review Menu:")
-        print("1. 🖊️ Add/Update Review")
+        print("1. 🖊️  Add/Update Review")
         print("2. 👀 View Reviews")
-        print("3. 🗑️ Delete Review")
+        print("3. 🗑️  Delete Review")
         print("4. 🔙 Go Back")
         choice = input("Enter your choice: ").strip()
         
         if choice == "1":
-            add_update_review(list_id, current_user_id, conn)
+            add_update_review(list_id)
         elif choice == "2":
-            view_reviews(list_id, current_user_id, conn)
+            view_reviews(list_id)
         elif choice == "3":
-            delete_review(list_id, current_user_id, conn)
+            delete_review(list_id)
         elif choice == "4":
             break
         else:
-            print("Invalid choice. Please try again.")
+            print("❌ Invalid choice. Please try again.")
 
 
-def add_update_review(stock_list_id, current_user_id, conn):
+def add_update_review(stock_list_id):
     """
     Adds a new review or updates an existing one for the stock list.
     If a review exists, prompts for confirmation to overwrite.
@@ -260,20 +260,23 @@ def add_update_review(stock_list_id, current_user_id, conn):
         # Check if a review already exists for this user and stock list.
         cur.execute(
             "SELECT review_id FROM Review WHERE stock_list_id = %s AND user_id = %s",
-            (stock_list_id, current_user_id)
+            (stock_list_id, auth.current_user["id"])
         )
         existing_review = cur.fetchone()
         
         if existing_review:
-            print("A review already exists for this stock list.")
+            print("❌ A review already exists for this stock list.")
             confirm = input("This will overwrite your previous review. Are you sure? (y/n): ").strip()
             if confirm.lower() != 'y':
-                print("Operation cancelled.")
+                print("❌ Operation cancelled.")
                 return
 
         review_text = input("Enter your review (max 4000 characters): ").strip()
+        if not review_text:
+            print("❌ Review cannot be empty. Operation cancelled.")
+            return
         if len(review_text) > 4000:
-            print("Review exceeds maximum length. Operation cancelled.")
+            print("❌ Review exceeds maximum length. Operation cancelled.")
             return
 
         if existing_review:
@@ -282,56 +285,17 @@ def add_update_review(stock_list_id, current_user_id, conn):
                 "UPDATE Review SET review_text = %s, review_date = CURRENT_TIMESTAMP WHERE review_id = %s",
                 (review_text, review_id)
             )
-            print("Review updated successfully.✅")
+            print("✅ Review updated successfully.")
         else:
             cur.execute(
                 "INSERT INTO Review (review_text, review_date, stock_list_id, user_id) VALUES (%s, CURRENT_TIMESTAMP, %s, %s)",
-                (review_text, stock_list_id, current_user_id)
+                (review_text, stock_list_id, auth.current_user["id"])
             )
-            print("Review added successfully.✅")
+            print("✅ Review added successfully.")
     conn.commit()
 
-# def view_reviews(stock_list_id, current_user_id, conn):
-#     """
-#     Retrieves and displays reviews for the given stock list.
-#     For public lists or if the current user is the list owner, all reviews are shown.
-#     For non-public lists, only the current user's review is shown.
-#     """
-#     with conn.cursor() as cur:
-#         # Retrieve stock list details (owner and visibility).
-#         cur.execute("SELECT user_id, visibility FROM Stock_List WHERE list_id = %s", (stock_list_id,))
-#         stock_list = cur.fetchone()
-#         if not stock_list:
-#             print("Stock list not found.")
-#             return
 
-#         owner_id, visibility = stock_list
-
-#         if visibility.lower() == 'public' or current_user_id == owner_id:
-#             cur.execute(
-#                 "SELECT review_id, user_id, review_text, review_date FROM Review WHERE stock_list_id = %s",
-#                 (stock_list_id,)
-#             )
-#         else:
-#             cur.execute(
-#                 "SELECT review_id, user_id, review_text, review_date FROM Review WHERE stock_list_id = %s AND user_id = %s",
-#                 (stock_list_id, current_user_id)
-#             )
-#         reviews = cur.fetchall()
-        
-#         if not reviews:
-#             print("No reviews available for this stock list.")
-#         else:
-#             print("\n--- Reviews ---")
-#             for review in reviews:
-#                 review_id, reviewer_id, review_text, review_date = review
-#                 print(f"\nReview ID: {review_id}")
-#                 print(f"Reviewer ID: {reviewer_id}")
-#                 print(f"Date: {review_date}")
-#                 print(review_text)
-#                 print("-" * 40)
-
-def view_reviews(stock_list_id, current_user_id, conn):
+def view_reviews(stock_list_id):
     """
     Retrieves and displays reviews for the given stock list.
     For public lists or if the current user is the list owner, all reviews are shown.
@@ -350,14 +314,12 @@ def view_reviews(stock_list_id, current_user_id, conn):
         )
         stock_list = cur.fetchone()
         if not stock_list:
-            print("Stock list not found.")
+            print("❌ Stock list not found.")
             return
 
         list_name, owner_id, visibility = stock_list
 
-        # Depending on the visibility or if the current user is the owner,
-        # display all reviews or only the current user's review.
-        if visibility.lower() == 'public' or current_user_id == owner_id:
+        if visibility.lower() == 'public' or auth.current_user["id"] == owner_id:
             query = """
                 SELECT u.username, r.review_text, r.review_date 
                 FROM Review r 
@@ -372,65 +334,80 @@ def view_reviews(stock_list_id, current_user_id, conn):
                 JOIN Users u ON r.user_id = u.user_id
                 WHERE r.stock_list_id = %s AND r.user_id = %s
             """
-            cur.execute(query, (stock_list_id, current_user_id))
+            cur.execute(query, (stock_list_id, auth.current_user["id"]))
 
         reviews = cur.fetchall()
 
         if not reviews:
-            print("No reviews available for this stock list.")
+            print("❌ No reviews available for this stock list.")
         else:
             print(f"\n--- Reviews for Stock List: {list_name} ---")
-            # Optionally display information about the current user.
-            print(f"Current User ID: {current_user_id}")
             for review in reviews:
                 username, review_text, review_date = review
                 print("\n----------------------------")
                 print(f"Review by: {username} on {review_date}")
-                print("Review:")
-                print(review_text)
+                print(f"Review: {review_text}")
                 print("----------------------------")
 
 
-def delete_review(stock_list_id, current_user_id, conn):
+def delete_review(stock_list_id):
     """
     Deletes a review from the stock list.
     The stock list owner can delete any review, while non-owners may only delete their own review.
+    For owners, the function now asks for the username of the reviewer instead of the review ID.
     """
     with conn.cursor() as cur:
         # Get the stock list owner's user ID.
         cur.execute("SELECT user_id FROM Stock_List WHERE list_id = %s", (stock_list_id,))
         stock_list = cur.fetchone()
         if not stock_list:
-            print("Stock list not found.")
+            print("❌ Stock list not found.")
             return
         
         owner_id = stock_list[0]
         
-        if current_user_id == owner_id:
-            # Owner: list all reviews for deletion.
-            cur.execute("SELECT review_id, user_id FROM Review WHERE stock_list_id = %s", (stock_list_id,))
+        if auth.current_user["id"] == owner_id:
+            # For the list owner, list all reviews with reviewer names.
+            query = """
+                SELECT r.review_id, u.username
+                FROM Review r 
+                JOIN Users u ON r.user_id = u.user_id
+                WHERE r.stock_list_id = %s
+            """
+            cur.execute(query, (stock_list_id,))
             reviews = cur.fetchall()
             if not reviews:
-                print("No reviews to delete.")
+                print("❌ No reviews to delete.")
                 return
             print("\nReviews:")
             for review in reviews:
-                print(f"Review ID: {review[0]}, Reviewer ID: {review[1]}")
-            review_id = input("Enter the Review ID to delete: ").strip()
-            cur.execute("DELETE FROM Review WHERE review_id = %s", (review_id,))
-            print("Review deleted successfully.✅")
+                print(f"Reviewer: {review[1]}")
+            review_username = input("Enter the username whose review you want to delete: ").strip()
+            if not review_username:
+                print("❌ Invalid username. Operation cancelled.")
+                return
+            # Identify the review_id corresponding to the given username (assuming one review per user).
+            review_to_delete = None
+            for review in reviews:
+                if review[1].lower() == review_username.lower():
+                    review_to_delete = review[0]
+                    break
+            if review_to_delete is None:
+                print(f"❌ No review found for username '{review_username}'.")
+                return
+            cur.execute("DELETE FROM Review WHERE review_id = %s", (review_to_delete,))
+            print("✅ Review deleted successfully.")
         else:
-            # Non-owner: can only delete their own review.
-            cur.execute("SELECT review_id FROM Review WHERE stock_list_id = %s AND user_id = %s", (stock_list_id, current_user_id))
+            cur.execute("SELECT review_id FROM Review WHERE stock_list_id = %s AND user_id = %s", 
+                        (stock_list_id, auth.current_user["id"]))
             row = cur.fetchone()
             if not row:
-                print("You do not have a review to delete for this stock list.")
+                print("❌ You do not have a review to delete for this stock list.")
                 return
             confirm = input("Are you sure you want to delete your review? (y/n): ").strip()
             if confirm.lower() != 'y':
-                print("Operation cancelled.")
+                print("❌ Operation cancelled.")
                 return
             cur.execute("DELETE FROM Review WHERE review_id = %s", (row[0],))
-            print("Your review has been deleted.✅")
+            print("✅ Your review has been deleted.")
     conn.commit()
-

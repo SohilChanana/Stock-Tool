@@ -1,10 +1,11 @@
 from time import sleep
+import pwinput
 current_user = {"id": None, "username": None}
 
 def signup(conn, cursor):
     """Sign up a new user and store their session."""
     username = input("Enter username: ")
-    password = input("Enter password: ")
+    password = pwinput.pwinput(prompt='Enter password: ', mask='●')
 
     # Check if the username is already taken
     cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
@@ -34,7 +35,7 @@ def signup(conn, cursor):
 def login(conn, cursor):
     """Log in an existing user and store their session."""
     username = input("Enter username: ")
-    password = input("Enter password: ")
+    password = pwinput.pwinput(prompt='Enter password: ', mask='●')
 
     try:
         cursor.execute("SELECT user_id, password FROM users WHERE username = %s", (username,))
