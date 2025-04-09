@@ -48,17 +48,17 @@ def view_portfolio_menu(portfolio_id):
         print(f"\n🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}")
         print("----------------------------")
 
-        # Updated portfolio view menu with Transfer Funds option.
         print("\n📊 Portfolio View Menu:")
         print("1. 💰 Deposit Cash")
         print("2. 💸 Withdraw Cash")
         print("3. 💱 Transfer Funds")
         print("4. 🛒 Buy Stock")
         print("5. 🏷️ Sell Stock")
-        print("6. 📈 View Portfolio Stats (Not implemented yet)")
-        print("7. ⏳ View Historical Stock Prices")
-        print("8. 🔮 Predict Future Stock Prices")
-        print("9. 🔙 Go Back")
+        print("6. 📈 View Stock Stats")
+        print("7. 📈 View Portfolio Stats")  # Updated option label
+        print("8. ⏳ View Historical Stock Prices")
+        print("9. 🔮 Predict Future Stock Prices")
+        print("10. 🔙 Go Back")
         
         choice = input("Choose an option: ")
         
@@ -73,13 +73,14 @@ def view_portfolio_menu(portfolio_id):
         elif choice == "5":
             stocks.sell_stock(portfolio_id)
         elif choice == "6":
-            print("Option not implemented yet.")
-            sleep(1)
+            stocks.view_stock_stats() 
         elif choice == "7":
-            stocks.view_historical_stock_prices()
+            stocks.view_portfolio_stats(portfolio_id)
         elif choice == "8":
-            stocks.view_future_stock_prices()
+            stocks.view_historical_stock_prices()
         elif choice == "9":
+            stocks.view_future_stock_prices()
+        elif choice == "10":
             break
         else:
             print("❌ Invalid option, please try again.")

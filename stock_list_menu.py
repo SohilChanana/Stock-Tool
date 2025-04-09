@@ -1,6 +1,7 @@
 import auth
 from db import conn, cursor
 from time import sleep
+import stocks
 
 def view_stock_list_menu(list_id, is_creator):
     while True:
@@ -55,10 +56,11 @@ def view_stock_list_menu(list_id, is_creator):
             print("1. ➕ Add Stock")
             print("2. ➖ Remove Stock")
             print("3. 🔗 Share List")
-            print("4. 📈 View Portfolio Stats (Not implemented yet)")
-            print("5. 💬 Manage Reviews")
-            print("6. ❌ Delete List")
-            print("7. 🔙 Go Back")
+            print("4. 📈 View Stock Stats")
+            print("5. 📈 View List Stats")
+            print("6. 💬 Manage Reviews")
+            print("7. ❌ Delete List")
+            print("8. 🔙 Go Back")
             choice = input("Choose an option: ")
             if choice == "1":
                 add_stock(list_id)
@@ -67,35 +69,37 @@ def view_stock_list_menu(list_id, is_creator):
             elif choice == "3":
                 share_list(list_id)
             elif choice == "4":
-                print("Option not implemented yet.")
-                sleep(1)
+                stocks.view_stock_stats()
             elif choice == "5":
-                review_menu(list_id)
+                stocks.view_list_stats(list_id)
             elif choice == "6":
-                if delete_list(list_id):
-                    # Once deleted, exit the menu.
-                    break
+                review_menu(list_id)
             elif choice == "7":
+                if delete_list(list_id):
+                    break
+            elif choice == "8":
                 break
             else:
                 print("❌ Invalid option, please try again.")
+                sleep(1)
         else:
             print("\n📊 Stock List Menu:")
-            print("1. 📈 View Portfolio Stats (Not implemented yet)")
-            print("2. 💬 Manage Reviews")
-            print("3. 🔙 Go Back")
+            print("1. 📈 View Stock Stats")
+            print("2. 📈 View List Stats")
+            print("3. 💬 Manage Reviews")
+            print("4. 🔙 Go Back")
             choice = input("Choose an option: ")
             if choice == "1":
-                print("Option not implemented yet.")
-                sleep(1)
-
-            if choice == "2":
-                review_menu(list_id)
-            
+                stocks.view_stock_stats()
+            elif choice == "2":
+                stocks.view_list_stats(list_id)
             elif choice == "3":
+                review_menu(list_id)
+            elif choice == "4":
                 break
             else:
                 print("❌ Invalid option, please try again.")
+                sleep(1)
 
 def add_stock(list_id):
     symbol = input("Enter the stock symbol to add: ").upper().strip()

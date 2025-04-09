@@ -413,3 +413,240 @@ def view_future_stock_prices():
     plt.ylabel("Predicted Close Price")
     plt.theme("dark")
     plt.show()
+
+def view_stock_stats():
+    """
+    Prompts the user for a stock symbol and then calculates the coefficient 
+    of variation (CV) and beta (using the summed close price of all stocks as 
+    a market proxy) based on the 5 years of historical daily data.
+    
+    The computed values are cached in the Stock_Stats_Cache table for faster
+    subsequent retrieval.
+    """
+    # Prompt the user for the stock symbol.
+    stock_symbol = input("Enter the stock symbol: ").upper().strip()
+    
+    # Validate that the stock exists.
+    cursor.execute("SELECT symbol FROM Stock WHERE symbol = %s;", (stock_symbol,))
+    if not cursor.fetchone():
+        print("❌ Stock symbol not found in the database.")
+        return
+
+    # First, check if stats for the stock are already cached.
+    cursor.execute("""
+        SELECT coefficient_of_variation, beta, last_updated
+        FROM Stock_Stats_Cache
+        WHERE symbol = %s;
+    """, (stock_symbol,))
+    cached_result = cursor.fetchone()
+    
+    if cached_result:
+        cv, beta, last_updated = cached_result
+        print(f"\nStatistics for {stock_symbol} (based on 5 years of data):")
+        print(f"Coefficient of Variation: {cv:.4f}")
+        print(f"Beta: {beta:.4f}")
+        return
+
+    # If not in cache, compute the stats using our 5 years of historical data.
+    # Compute daily returns for the stock, then its CV, and then beta using
+    # the market returns computed from the summed close prices of all stocks.
+    stats_query = """
+        WITH stock_data AS (
+            SELECT trade_date,
+                   (close - LAG(close) OVER (ORDER BY trade_date)) / LAG(close) OVER (ORDER BY trade_date) AS daily_return
+            FROM Daily_Stock_Price
+            WHERE symbol = %s
+        ),
+        cv_calc AS (
+            SELECT AVG(daily_return) AS mean_return,
+                   STDDEV_POP(daily_return) AS stddev_return,
+                   STDDEV_POP(daily_return) / AVG(daily_return) AS coefficient_of_variation
+            FROM stock_data
+            WHERE daily_return IS NOT NULL
+        ),
+        market_data AS (
+            SELECT trade_date,
+                   SUM(close) AS market_close
+            FROM Daily_Stock_Price
+            GROUP BY trade_date
+            ORDER BY trade_date
+        ),
+        market_returns AS (
+            SELECT trade_date,
+                   (market_close - LAG(market_close) OVER (ORDER BY trade_date)) / LAG(market_close) OVER (ORDER BY trade_date) AS market_daily_return
+            FROM market_data
+        ),
+        beta_calc AS (
+            SELECT covar_pop(s.daily_return, m.market_daily_return) / var_pop(m.market_daily_return) AS beta
+            FROM stock_data s
+            JOIN market_returns m ON s.trade_date = m.trade_date
+            WHERE s.daily_return IS NOT NULL AND m.market_daily_return IS NOT NULL
+        )
+        SELECT cv.coefficient_of_variation, beta.beta
+        FROM cv_calc cv, beta_calc beta;
+    """
+    
+    cursor.execute(stats_query, (stock_symbol,))
+    result = cursor.fetchone()
+    
+    if not result:
+        print("❌ Failed to compute statistics for the stock.")
+        return
+    
+    cv, beta = result
+
+    # Insert the computed stats into the Stock_Stats_Cache table.
+    cursor.execute("""
+        INSERT INTO Stock_Stats_Cache (symbol, coefficient_of_variation, beta, last_updated)
+        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (symbol)
+        DO UPDATE SET 
+            coefficient_of_variation = EXCLUDED.coefficient_of_variation,
+            beta = EXCLUDED.beta,
+            last_updated = EXCLUDED.last_updated;
+    """, (stock_symbol, cv, beta))
+    conn.commit()
+
+    # Display the computed statistics.
+    print(f"\nStatistics for {stock_symbol} (based on 5 years of data):")
+    print(f"Coefficient of Variation: {cv:.4f}")
+    print(f"Beta: {beta:.4f}")
+    
+def get_pair_correlation(symbol1, symbol2):
+    """
+    Given two stock symbols, return their correlation based on historical daily returns.
+    The function first orders the pair alphabetically, then checks the Correlation_Cache table.
+    If the correlation value is not found, it computes it, stores it in the cache,
+    and then returns the computed value.
+    """
+    # Ensure a consistent order for the pair.
+    s1, s2 = (symbol1, symbol2) if symbol1 < symbol2 else (symbol2, symbol1)
+
+    # Check the cache.
+    cursor.execute("""
+        SELECT correlation FROM Correlation_Cache
+        WHERE symbol_a = %s AND symbol_b = %s;
+    """, (s1, s2))
+    result = cursor.fetchone()
+    if result is not None:
+        return result[0]
+
+    # Compute the correlation if not cached.
+    correlation_query = """
+        WITH stock1 AS (
+            SELECT trade_date,
+                   (close - LAG(close) OVER (ORDER BY trade_date)) / LAG(close) OVER (ORDER BY trade_date) AS daily_return
+            FROM Daily_Stock_Price
+            WHERE symbol = %s
+        ),
+        stock2 AS (
+            SELECT trade_date,
+                   (close - LAG(close) OVER (ORDER BY trade_date)) / LAG(close) OVER (ORDER BY trade_date) AS daily_return
+            FROM Daily_Stock_Price
+            WHERE symbol = %s
+        )
+        SELECT corr(s1.daily_return, s2.daily_return) AS correlation
+        FROM stock1 s1
+        JOIN stock2 s2 ON s1.trade_date = s2.trade_date
+        WHERE s1.daily_return IS NOT NULL AND s2.daily_return IS NOT NULL;
+    """
+    cursor.execute(correlation_query, (symbol1, symbol2))
+    result = cursor.fetchone()
+    corr_value = result[0] if result is not None else None
+
+    # Cache the computed result if it is not None.
+    if corr_value is not None:
+        cursor.execute("""
+            INSERT INTO Correlation_Cache (symbol_a, symbol_b, correlation, last_updated)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (symbol_a, symbol_b)
+            DO UPDATE SET correlation = EXCLUDED.correlation,
+                          last_updated = EXCLUDED.last_updated;
+        """, (s1, s2, corr_value))
+        conn.commit()
+
+    return corr_value
+
+def view_portfolio_stats(portfolio_id):
+    """
+    Retrieves all stocks in the portfolio, calculates pairwise correlation for each pair
+    (using cached values when available), and displays the correlation matrix.
+    """
+    # Retrieve the portfolio's stock symbols.
+    cursor.execute("SELECT symbol FROM Portfolio_Contains WHERE portfolio_id = %s;", (portfolio_id,))
+    rows = cursor.fetchall()
+    if not rows:
+        print("No stocks in portfolio.")
+        return
+    # Create a sorted list of symbols.
+    symbols = sorted([row[0] for row in rows])
+    n = len(symbols)
+
+    # Build an empty matrix (dictionary of dictionaries) to hold correlations.
+    matrix = {symbol: {s: None for s in symbols} for symbol in symbols}
+
+    # For each pair (including diagonal), fill in the correlation.
+    for i in range(n):
+        for j in range(i, n):
+            if i == j:
+                matrix[symbols[i]][symbols[j]] = 1.0  # Same stock: correlation = 1
+            else:
+                corr_val = get_pair_correlation(symbols[i], symbols[j])
+                # If no value was returned, default to 0 (or handle as needed).
+                if corr_val is None:
+                    corr_val = 0.0
+                matrix[symbols[i]][symbols[j]] = corr_val
+                matrix[symbols[j]][symbols[i]] = corr_val  # symmetry
+
+    # Display the correlation matrix in a formatted manner.
+    print("\nCorrelation Matrix:")
+    # Print the header row.
+    header = "         " + "  ".join([f"{sym:>8}" for sym in symbols])
+    print(header)
+    for sym in symbols:
+        row_str = f"{sym:>8}"
+        for sym2 in symbols:
+            row_str += f"  {matrix[sym][sym2]:8.4f}"
+        print(row_str)
+
+def view_list_stats(list_id):
+    """
+    Retrieves all stocks in the stock list (from the List_Contains table),
+    calculates pairwise correlations for each pair (using cached values when available),
+    and displays the correlation matrix.
+    """
+    # Retrieve the stock symbols in the list.
+    cursor.execute("SELECT symbol FROM List_Contains WHERE list_id = %s;", (list_id,))
+    rows = cursor.fetchall()
+    if not rows:
+        print("No stocks in the list.")
+        return
+    # Create a sorted list of symbols.
+    symbols = sorted([row[0] for row in rows])
+    n = len(symbols)
+
+    # Build an empty matrix (as a dict of dicts) to store correlations.
+    matrix = {symbol: {s: None for s in symbols} for symbol in symbols}
+
+    # For each unique pair (and diagonal), fill in the correlation.
+    for i in range(n):
+        for j in range(i, n):
+            if i == j:
+                matrix[symbols[i]][symbols[j]] = 1.0  # Self-correlation is 1
+            else:
+                corr_val = get_pair_correlation(symbols[i], symbols[j])
+                # Default to 0 if no value is returned.
+                if corr_val is None:
+                    corr_val = 0.0
+                matrix[symbols[i]][symbols[j]] = corr_val
+                matrix[symbols[j]][symbols[i]] = corr_val  # symmetry
+
+    # Display the correlation matrix.
+    print("\nCorrelation Matrix for Stock List:")
+    header = "         " + "  ".join([f"{sym:>8}" for sym in symbols])
+    print(header)
+    for sym in symbols:
+        row_str = f"{sym:>8}"
+        for sym2 in symbols:
+            row_str += f"  {matrix[sym][sym2]:8.4f}"
+        print(row_str)
