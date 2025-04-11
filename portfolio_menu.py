@@ -3,6 +3,7 @@ from db import conn, cursor
 import stocks
 from time import sleep
 from datetime import timedelta
+from ansi_format import style_menu_option, style_input_prompt, style_error, style_success, style_label, style_info
 
 def view_portfolio_menu(portfolio_id):
     while True:
@@ -11,13 +12,13 @@ def view_portfolio_menu(portfolio_id):
         cursor.execute(query, (portfolio_id,))
         result = cursor.fetchone()
         if not result:
-            print("Portfolio not found.")
+            print(style_error("Portfolio not found."))
             return
 
         name, cash_balance = result
-        print("\n----------------------------")
-        print(f"📂 Portfolio: {name}")
-        print(f"💵 Cash Balance: ${float(cash_balance):,.2f}")
+        print(style_label("\n----------------------------"))
+        print(style_label(f"📂 Portfolio: {name}"))
+        print(style_label(f"💵 Cash Balance: ${float(cash_balance):,.2f}"))
 
         # Calculate the current market value of stocks in the portfolio.
         total_stocks_value = 0.0
@@ -26,7 +27,7 @@ def view_portfolio_menu(portfolio_id):
         stocks_in_portfolio = cursor.fetchall()
         
         if stocks_in_portfolio:
-            print("\nStocks in Portfolio:")
+            print("\n" + style_label("Stocks in Portfolio:"))
             for symbol, shares in stocks_in_portfolio:
                 # Get the most recent close price for the stock.
                 cursor.execute(
@@ -40,27 +41,28 @@ def view_portfolio_menu(portfolio_id):
                     close_price = 0.0
                 stock_value = shares * close_price
                 total_stocks_value += stock_value
-                print(f"- {symbol}: {shares} shares, Share Price: ${close_price:,.2f}")
+                # Using style_info for stock details:
+                print(style_info(f"- {symbol}: {shares} shares, Share Price: ${close_price:,.2f}"))
         else:
-            print("\nNo stocks in this portfolio.")
+            print("\n" + style_info("No stocks in this portfolio."))
 
         total_portfolio_value = float(cash_balance) + total_stocks_value
-        print(f"\n🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}")
-        print("----------------------------")
+        print("\n" + style_label(f"🏦 Total Portfolio Market Value: ${total_portfolio_value:,.2f}"))
+        print(style_label("----------------------------"))
 
-        print("\n📊 Portfolio View Menu:")
-        print("1. 💰 Deposit Cash")
-        print("2. 💸 Withdraw Cash")
-        print("3. 💱 Transfer Funds")
-        print("4. 🛒 Buy Stock")
-        print("5. 🏷️ Sell Stock")
-        print("6. 📈 View Stock Stats")
-        print("7. 📈 View Portfolio Stats")  # Updated option label
-        print("8. ⏳ View Historical Stock Prices")
-        print("9. 🔮 Predict Future Stock Prices")
-        print("10. 🔙 Go Back")
+        print("\n" + style_label("📊 Portfolio View Menu:"))
+        print(style_menu_option("1. 💰 Deposit Cash"))
+        print(style_menu_option("2. 💸 Withdraw Cash"))
+        print(style_menu_option("3. 💱 Transfer Funds"))
+        print(style_menu_option("4. 🛒 Buy Stock"))
+        print(style_menu_option("5. 🏷️  Sell Stock"))
+        print(style_menu_option("6. 📈 View Stock Stats"))
+        print(style_menu_option("7. 📈 View Portfolio Stats"))
+        print(style_menu_option("8. ⏳ View Historical Stock Prices"))
+        print(style_menu_option("9. 🔮 Predict Future Stock Prices"))
+        print(style_menu_option("10. 🔙 Go Back"))
         
-        choice = input("Choose an option: ")
+        choice = input(style_input_prompt("Choose an option: "))
         
         if choice == "1":
             deposit_cash(portfolio_id)
@@ -83,15 +85,15 @@ def view_portfolio_menu(portfolio_id):
         elif choice == "10":
             break
         else:
-            print("❌ Invalid option, please try again.")
+            print(style_error("❌ Invalid option, please try again."))
             sleep(1)
 
 
 def deposit_cash(portfolio_id):
     try:
-        amount = float(input("Enter the amount to deposit: "))
+        amount = float(input(style_input_prompt("Enter the amount to deposit: ")))
         if amount <= 0:
-            print("❌ Amount must be positive.")
+            print(style_error("❌ Amount must be positive."))
             sleep(1)
             return
         # Update portfolio cash balance
@@ -105,18 +107,18 @@ def deposit_cash(portfolio_id):
         """
         cursor.execute(insert_query, (portfolio_id, amount))
         conn.commit()
-        print(f"✅ Deposited ${amount:,.2f} successfully.")
+        print(style_success(f"✅ Deposited ${amount:,.2f} successfully."))
         sleep(1)
     except ValueError:
-        print("❌ Invalid amount.")
+        print(style_error("❌ Invalid amount."))
         sleep(1)
 
 
 def withdraw_cash(portfolio_id):
     try:
-        amount = float(input("Enter the amount to withdraw: "))
+        amount = float(input(style_input_prompt("Enter the amount to withdraw: ")))
         if amount <= 0:
-            print("❌ Amount must be positive.")
+            print(style_error("❌ Amount must be positive."))
             sleep(1)
             return
         # Check current cash balance
@@ -124,7 +126,7 @@ def withdraw_cash(portfolio_id):
         cursor.execute(query, (portfolio_id,))
         current_balance = cursor.fetchone()[0]
         if amount > float(current_balance):
-            print("❌ Insufficient funds to withdraw that amount.")
+            print(style_error("❌ Insufficient funds to withdraw that amount."))
             sleep(1)
             return
         
@@ -139,10 +141,10 @@ def withdraw_cash(portfolio_id):
         """
         cursor.execute(insert_query, (portfolio_id, amount))
         conn.commit()
-        print(f"✅ Withdrew ${amount:,.2f} successfully.")
+        print(style_success(f"✅ Withdrew ${amount:,.2f} successfully."))
         sleep(1)
     except ValueError:
-        print("❌ Invalid amount.")
+        print(style_error("❌ Invalid amount."))
         sleep(1)
 
 def transfer_funds(portfolio_id):
@@ -151,44 +153,51 @@ def transfer_funds(portfolio_id):
     cursor.execute(query, (portfolio_id,))
     current_balance_row = cursor.fetchone()
     if not current_balance_row:
-        print("❌ Current portfolio not found.")
+        print(style_error("❌ Current portfolio not found."))
+        sleep(1)
         return
     current_balance = float(current_balance_row[0])
     
     # Ask for the target portfolio name.
-    target_name = input("Enter the name of the portfolio to transfer funds to: ").strip()
+    target_name = input(style_input_prompt("Enter the name of the portfolio to transfer funds to: ")).strip()
     # Assume the target portfolio belongs to the same user.
     user_id = auth.current_user["id"]
     query = "SELECT portfolio_id FROM Portfolio WHERE name = %s AND user_id = %s;"
     cursor.execute(query, (target_name, user_id))
     target_row = cursor.fetchone()
     if not target_row:
-        print("❌ Target portfolio not found.")
+        print(style_error("❌ Target portfolio not found."))
+        sleep(1)
         return
     target_portfolio_id = target_row[0]
     if target_portfolio_id == portfolio_id:
-        print("❌ Cannot transfer funds to the same portfolio.")
+        print(style_error("❌ Cannot transfer funds to the same portfolio."))
+        sleep(1)
         return
     
     # Ask for the amount to transfer.
     try:
-        amount = float(input("Enter the amount to transfer: "))
+        amount = float(input(style_input_prompt("Enter the amount to transfer: ")))
         if amount <= 0:
-            print("❌ Amount must be positive.")
+            print(style_error("❌ Amount must be positive."))
+            sleep(1)
             return
     except ValueError:
-        print("❌ Invalid amount.")
+        print(style_error("❌ Invalid amount."))
+        sleep(1)
         return
     
     # Check if the current portfolio has sufficient funds.
     if amount > current_balance:
-        print("❌ Insufficient funds to complete this transfer.")
+        print(style_error("❌ Insufficient funds to complete this transfer."))
+        sleep(1)
         return
     
     # Ask for confirmation.
-    confirm = input(f"Confirm transfer of ${amount:,.2f} to portfolio '{target_name}'? (y/n): ").lower()
+    confirm = input(style_input_prompt(f"Confirm transfer of ${amount:,.2f} to portfolio '{target_name}'? (y/n): ")).lower()
     if confirm != 'y':
-        print("❌ Transfer cancelled.")
+        print(style_error("❌ Transfer cancelled."))
+        sleep(1)
         return
     
     # Deduct funds from the current portfolio.
@@ -205,5 +214,5 @@ def transfer_funds(portfolio_id):
     cursor.execute(insert_transaction, (portfolio_id, amount, target_portfolio_id))
     
     conn.commit()
-    print(f"✅ Transferred ${amount:,.2f} to portfolio '{target_name}' successfully.")
+    print(style_success(f"✅ Transferred ${amount:,.2f} to portfolio '{target_name}' successfully."))
     sleep(1)

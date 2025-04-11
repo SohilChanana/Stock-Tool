@@ -1,17 +1,21 @@
 import auth
 from db import conn, cursor
 from datetime import datetime, timedelta
+from time import sleep
+from ansi_format import style_menu_option, style_input_prompt, style_error, style_success, style_label, style_info
 
 def send_friend_request(from_username, to_username):
     if from_username == to_username:
-        print("❌ You cannot send a friend request to yourself.")
+        print(style_error("❌ You cannot send a friend request to yourself."))
+        sleep(1)
         return
 
     # Get the target user
     cursor.execute("SELECT user_id FROM users WHERE username = %s", (to_username,))
     to_user = cursor.fetchone()
     if not to_user:
-        print("❌ User not found.")
+        print(style_error("❌ User not found."))
+        sleep(1)
         return
 
     cursor.execute("SELECT user_id FROM users WHERE username = %s", (from_username,))
@@ -24,7 +28,8 @@ def send_friend_request(from_username, to_username):
     """, (from_user[0], to_user[0], to_user[0], from_user[0]))
     friendship = cursor.fetchone()
     if friendship:
-        print("❌ You are already friends with this user.")
+        print(style_error("❌ You are already friends with this user."))
+        sleep(1)
         return
 
     # Check for an existing friend request
@@ -37,10 +42,12 @@ def send_friend_request(from_username, to_username):
     if existing_request:
         status, last_updated = existing_request
         if status == 'pending':
-            print("❌ Friend request already sent.")
+            print(style_error("❌ Friend request already sent."))
+            sleep(1)
             return
         elif status == 'rejected' and datetime.now() - last_updated < timedelta(minutes=5):
-            print("❌ You must wait 5 minutes before resending a request.")
+            print(style_error("❌ You must wait 5 minutes before resending a request."))
+            sleep(1)
             return
 
     cursor.execute("""
@@ -48,13 +55,15 @@ def send_friend_request(from_username, to_username):
         VALUES (%s, %s, NOW(), 'pending', NOW())
     """, (from_user[0], to_user[0]))
     conn.commit()
-    print("✅ Friend request sent!")
+    print(style_success("✅ Friend request sent!"))
+    sleep(1)
 
 def view_and_manage_requests(username):
     cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
     user = cursor.fetchone()
     if not user:
-        print("❌ User not found.")
+        print(style_error("❌ User not found."))
+        sleep(1)
         return
 
     user_id = user[0]
@@ -77,39 +86,41 @@ def view_and_manage_requests(username):
     """, (user_id,))
     outgoing_requests = cursor.fetchall()
 
-    print("\n📥 Incoming Friend Requests:")
+    print(style_label("\n📥 Incoming Friend Requests:"))
     if incoming_requests:
         for idx, req in enumerate(incoming_requests, start=1):
-            print(f"{idx}. 👤 {req[0]} (Sent: {req[2]})")
+            print(style_info(f"{idx}. 👤 {req[0]} (Sent: {req[2]})"))
     else:
-        print("   You have no incoming friend requests.")
+        print(style_info("   You have no incoming friend requests."))
 
-    print("\n📤 Outgoing Friend Requests:")
+    print(style_label("\n📤 Outgoing Friend Requests:"))
     if outgoing_requests:
         for idx, req in enumerate(outgoing_requests, start=1):
-            print(f"{idx}. 👤 {req[0]} (Sent: {req[2]})")
+            print(style_info(f"{idx}. 👤 {req[0]} (Sent: {req[2]})"))
     else:
-        print("   You have no outgoing friend requests.")
+        print(style_info("   You have no outgoing friend requests."))
 
-    # Display a sub-menu with number options and emojis
-    print("\n📋 Friend Request Options:")
-    print("1. ✅ Manage an Incoming Request")
-    print("2. 🔙 Back to Friends Menu")
-    choice = input("Choose an option: ").strip()
+    # Display a sub-menu with options
+    print(style_label("\n📋 Friend Request Options:"))
+    print(style_menu_option("1. ✅ Manage an Incoming Request"))
+    print(style_menu_option("2. 🔙 Back to Friends Menu"))
+    choice = input(style_input_prompt("Choose an option: ")).strip()
 
     if choice == "1":
         if not incoming_requests:
-            print("❌ No incoming friend requests to manage.")
+            print(style_error("❌ No incoming friend requests to manage."))
+            sleep(1)
             return
-        sender_username = input("Enter the username of the friend request to manage: ").strip()
+        sender_username = input(style_input_prompt("Enter the username of the friend request to manage: ")).strip()
         if not any(req[0] == sender_username for req in incoming_requests):
-            print("❌ No incoming friend request from that user.")
+            print(style_error("❌ No incoming friend request from that user."))
+            sleep(1)
             return
-        print(f"\nWhat do you want to do with the request from {sender_username}?")
-        print("1. ✅ Accept")
-        print("2. ❌ Reject")
-        print("3. 🔙 Cancel")
-        decision = input("Choose an option: ").strip()
+        print(style_label(f"\nWhat do you want to do with the request from {sender_username}?"))
+        print(style_menu_option("1. ✅ Accept"))
+        print(style_menu_option("2. ❌ Reject"))
+        print(style_menu_option("3. 🔙 Cancel"))
+        decision = input(style_input_prompt("Choose an option: ")).strip()
         if decision == "1":
             process_friend_request(username, sender_username, 'accept')
         elif decision == "2":
@@ -117,11 +128,13 @@ def view_and_manage_requests(username):
         elif decision == "3":
             return
         else:
-            print("❌ Invalid option.")
+            print(style_error("❌ Invalid option."))
+            sleep(1)
     elif choice == "2":
         return
     else:
-        print("❌ Invalid option.")
+        print(style_error("❌ Invalid option."))
+        sleep(1)
 
 def process_friend_request(username, from_username, action):
     # Fetch user_id of the recipient
@@ -129,7 +142,8 @@ def process_friend_request(username, from_username, action):
     to_user = cursor.fetchone()
     
     if not to_user:
-        print("❌ User not found.")
+        print(style_error("❌ User not found."))
+        sleep(1)
         return
     
     # Fetch user_id of the sender
@@ -137,7 +151,8 @@ def process_friend_request(username, from_username, action):
     from_user = cursor.fetchone()
     
     if not from_user:
-        print("❌ Request sender not found.")
+        print(style_error("❌ Request sender not found."))
+        sleep(1)
         return
 
     # Check if there is a pending request
@@ -148,7 +163,8 @@ def process_friend_request(username, from_username, action):
     request = cursor.fetchone()
     
     if not request:
-        print("❌ No pending request from this user.")
+        print(style_error("❌ No pending request from this user."))
+        sleep(1)
         return
     
     # Process the request
@@ -158,10 +174,12 @@ def process_friend_request(username, from_username, action):
             VALUES (%s, %s, NOW())
         """, (from_user[0], to_user[0]))
         cursor.execute("UPDATE FRIEND_REQUEST SET status = 'accepted', last_updated = NOW() WHERE request_id = %s", (request[0],))
-        print("✅ Friend request accepted!")
+        print(style_success("✅ Friend request accepted!"))
+        sleep(1)
     elif action == 'reject':
         cursor.execute("UPDATE FRIEND_REQUEST SET status = 'rejected', last_updated = NOW() WHERE request_id = %s", (request[0],))
-        print("❌ Friend request rejected!")
+        print(style_error("❌ Friend request rejected!"))
+        sleep(1)
     
     conn.commit()
 
@@ -169,7 +187,8 @@ def view_friends(username):
     cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
     result = cursor.fetchone()
     if not result:
-        print("❌ User not found.")
+        print(style_error("❌ User not found."))
+        sleep(1)
         return []
     user_id = result[0]
     
@@ -181,12 +200,12 @@ def view_friends(username):
     """, (user_id, user_id, user_id))
     friends = cursor.fetchall()
     
-    print("\n👥 Your Friends:")
+    print(style_label("\n👥 Your Friends:"))
     if not friends:
-        print("   You have no friends added yet.")
+        print(style_info("   You have no friends added yet."))
     else:
         for friend in friends:
-            print(f"- {friend[0]}")
+            print(style_info(f"- {friend[0]}"))
     return friends
 
 def delete_friend(username, friend_username):
@@ -195,7 +214,8 @@ def delete_friend(username, friend_username):
     user = cursor.fetchone()
     
     if not user:
-        print("❌ User not found.")
+        print(style_error("❌ User not found."))
+        sleep(1)
         return
     
     # Fetch user_id of the friend to delete
@@ -203,7 +223,8 @@ def delete_friend(username, friend_username):
     friend = cursor.fetchone()
     
     if not friend:
-        print("❌ Friend not found.")
+        print(style_error("❌ Friend not found."))
+        sleep(1)
         return
 
     user_id, friend_id = user[0], friend[0]
@@ -216,7 +237,8 @@ def delete_friend(username, friend_username):
     friendship = cursor.fetchone()
 
     if not friendship:
-        print("❌ You are not friends with this user.")
+        print(style_error("❌ You are not friends with this user."))
+        sleep(1)
         return
 
     # Delete friendship record
@@ -226,7 +248,8 @@ def delete_friend(username, friend_username):
     """, (user_id, friend_id, friend_id, user_id))
     conn.commit()
 
-    print("✅ Friend deleted successfully.")
+    print(style_success("✅ Friend deleted successfully."))
+    sleep(1)
 
 def friends_menu(username):
     while True:
@@ -234,7 +257,8 @@ def friends_menu(username):
         cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
         if not user:
-            print("❌ User not found.")
+            print(style_error("❌ User not found."))
+            sleep(1)
             return
         user_id = user[0]
 
@@ -245,29 +269,30 @@ def friends_menu(username):
         outgoing_count = cursor.fetchone()[0]
 
         # Display summary: friends list and counts
-        print("\n----------------------------")
-        print("Friends Summary:")
+        print(style_label("\n----------------------------"))
+        print(style_label("Friends Summary:"))
         view_friends(username)
-        print(f"\nYou have {incoming_count} incoming friend request(s) and {outgoing_count} outgoing friend request(s).")
-        print("----------------------------")
+        print(style_info(f"\nYou have {incoming_count} incoming friend request(s) and {outgoing_count} outgoing friend request(s)."))
+        print(style_label("----------------------------"))
 
         # Display menu options
-        print("\n🤝 Friends Menu:")
-        print("1. ➕ Send Friend Request")
-        print("2. 📥 View/Manage Friend Requests")
-        print("3. ❌ Delete a Friend")
-        print("4. 🔙 Back to Main Menu")
-        choice = input("Choose an option: ").strip()
+        print(style_label("\n🤝 Friends Menu:"))
+        print(style_menu_option("1. ➕ Send Friend Request"))
+        print(style_menu_option("2. 📥 View/Manage Friend Requests"))
+        print(style_menu_option("3. ❌ Delete a Friend"))
+        print(style_menu_option("4. 🔙 Back to Main Menu"))
+        choice = input(style_input_prompt("Choose an option: ")).strip()
         
         if choice == "1":
-            to_username = input("Enter the username of the person you want to add: ").strip()
+            to_username = input(style_input_prompt("Enter the username of the person you want to add: ")).strip()
             send_friend_request(username, to_username)
         elif choice == "2":
             view_and_manage_requests(username)
         elif choice == "3":
-            friend_username = input("Enter the username of the friend to delete: ").strip()
+            friend_username = input(style_input_prompt("Enter the username of the friend to delete: ")).strip()
             delete_friend(username, friend_username)
         elif choice == "4":
             break
         else:
-            print("❌ Invalid option, try again.")
+            print(style_error("❌ Invalid option, try again."))
+            sleep(1)

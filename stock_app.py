@@ -1,24 +1,28 @@
 import auth
 from db import conn, cursor
 from time import sleep
-import portfolio_overview  # Existing portfolio functionality
-import stock_list_overview  # Existing personal/ shared stock list functionality
-import public_stock_list_overview  # NEW: public stock lists functionality
-import stocks               # Existing stock functionality
-import friends_module       # Existing friends functionality
+import portfolio_overview 
+import stock_list_overview  
+import public_stock_list_overview  
+import stocks              
+import friends_module       
+from ansi_format import style_menu_option, style_input_prompt, style_error, style_success, style_label, style_info
 
 def main_menu():
+    """
+    Main menu function that handles user authentication and displays the main menu options.
+    """
     while True:
         if auth.current_user["username"]:
-            print("\nPlease choose an option:")
-            print("1. 📁 View Portfolios")
-            print("2. 📝 View Stock Lists")
-            print("3. 🌐 View Public Stock Lists")
-            print("4. 🗓️  Add Daily Stock Data")
-            print("5. 🤝 Friends Menu")
-            print("6. 🔓 Logout")
-            print("7. ❌ Close Application")
-            choice = input("Choose an option: ")
+            print(style_label("\nPlease choose an option:"))
+            print(style_menu_option("1. 📁 View Portfolios"))
+            print(style_menu_option("2. 📝 View Stock Lists"))
+            print(style_menu_option("3. 🌐 View Public Stock Lists"))
+            print(style_menu_option("4. 🗓️  Add Daily Stock Data"))
+            print(style_menu_option("5. 🤝 Friends Menu"))
+            print(style_menu_option("6. 🔓 Logout"))
+            print(style_menu_option("7. ❌ Close Application"))
+            choice = input(style_input_prompt("Choose an option: "))
             
             if choice == "1":
                 portfolio_overview.portfolio_overview_menu()
@@ -35,15 +39,15 @@ def main_menu():
             elif choice == "7":
                 break
             else:
-                print("❌ Invalid option, try again.")
+                print(style_error("❌ Invalid option, try again."))
                 sleep(1)
         else:
-            print("\n📈 Welcome to the Stock Tool!")
-            print("Please choose an option:")
-            print("1. 🆕 Signup")
-            print("2. 🔐 Login")
-            print("3. ❌ Close Application")
-            choice = input("Choose an option: ")
+            print(style_info("\n📈 Welcome to the Stock Tool!"))
+            print(style_label("Please choose an option:"))
+            print(style_menu_option("1. 🆕 Signup"))
+            print(style_menu_option("2. 🔐 Login"))
+            print(style_menu_option("3. ❌ Close Application"))
+            choice = input(style_input_prompt("Choose an option: "))
             
             if choice == "1":
                 auth.signup(conn, cursor)
@@ -52,7 +56,8 @@ def main_menu():
             elif choice == "3":
                 break
             else:
-                print("❌ Invalid option, try again.")
+                print(style_error("❌ Invalid option, try again."))
+                sleep(1)
 
 if __name__ == "__main__":
     try:
@@ -60,5 +65,5 @@ if __name__ == "__main__":
     finally:
         cursor.close()
         conn.close()
-        print("⛔ Application closed.\n")
+        print(style_info("⛔ Application closed.\n"))
         sleep(1)

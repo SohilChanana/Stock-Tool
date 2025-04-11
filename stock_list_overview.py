@@ -2,21 +2,25 @@ import auth
 from db import conn, cursor
 from time import sleep
 import stock_list_menu
+from ansi_format import style_menu_option, style_input_prompt, style_error, style_success, style_label, style_info
 
 def stock_list_menu_view():
+    """
+    Stock list menu function that allows users to create and view their stock lists.
+    """
     while True:
         owned_lists = display_owned_lists()
         shared_lists = display_shared_lists()
         
-        print("\n📃 Stock Lists Menu:")
-        print("1. 🆕 Create Stock List")
+        print(style_label("\n📃 Stock Lists Menu:"))
+        print(style_menu_option("1. 🆕 Create Stock List"))
         if owned_lists or shared_lists:
-            print("2. 🔍 Open Stock List")
-            print("3. 🔙 Go Back")
+            print(style_menu_option("2. 🔍 Open Stock List"))
+            print(style_menu_option("3. 🔙 Go Back"))
         else:
-            print("2. 🔙 Go Back")
+            print(style_menu_option("2. 🔙 Go Back"))
             
-        choice = input("Choose an option: ")
+        choice = input(style_input_prompt("Choose an option: "))
         
         if choice == "1":
             create_stock_list()
@@ -25,9 +29,13 @@ def stock_list_menu_view():
         elif (choice == "2" and not (owned_lists or shared_lists)) or (choice == "3" and (owned_lists or shared_lists)):
             break
         else:
-            print("❌ Invalid option, please try again.")
+            print(style_error("❌ Invalid option, please try again."))
+            sleep(1)
 
 def display_owned_lists():
+    """
+    Display all stock lists owned by the current user.
+    """
     user_id = auth.current_user["id"]
     query = """
     SELECT sl.list_id, sl.name, sl.visibility, u.username
@@ -37,17 +45,20 @@ def display_owned_lists():
     """
     cursor.execute(query, (user_id,))
     owned_lists = cursor.fetchall()
-    print("\n----------------------------")
+    print(style_label("\n----------------------------"))
     if owned_lists:
-        print("Your Stock Lists:")
+        print(style_label("Your Stock Lists:"))
         for list_id, name, visibility, username in owned_lists:
-            print(f"Name: {name}, Visibility: {visibility}, Created by: {username}")
+            print(style_info(f"Name: {name}, Visibility: {visibility}, Created by: {username}"))
     else:
-        print("\nYou have no stock lists.")
+        print(style_info("\nYou have no stock lists."))
     
     return owned_lists
 
 def display_shared_lists():
+    """
+    Display all stock lists shared with the current user.
+    """
     user_id = auth.current_user["id"]
     query = """
     SELECT sl.list_id, sl.name, sl.visibility, u.username
@@ -59,39 +70,46 @@ def display_shared_lists():
     cursor.execute(query, (user_id,))
     shared_lists = cursor.fetchall()
     if shared_lists:
-        print("\nStock Lists Shared With You:")
+        print(style_label("\nStock Lists Shared With You:"))
         for list_id, name, visibility, username in shared_lists:
-            print(f"Name: {name}, Visibility: {visibility}, Created by: {username}")
-    print("----------------------------")
+            print(style_info(f"Name: {name}, Visibility: {visibility}, Created by: {username}"))
+    print(style_label("----------------------------"))
     return shared_lists
 
 def create_stock_list():
+    """
+    Create a new stock list for the current user.
+    """
     user_id = auth.current_user["id"]
-    name = input("Enter a name for your new stock list: ")
+    name = input(style_input_prompt("Enter a name for your new stock list: "))
     
     # Check if a stock list with the same name already exists for this user
     query = "SELECT list_id FROM Stock_List WHERE user_id = %s AND name = %s;"
     cursor.execute(query, (user_id, name))
     if cursor.fetchone():
-        print("❌ You already have a stock list with that name. Please choose a different name.")
+        print(style_error("❌ You already have a stock list with that name. Please choose a different name."))
         sleep(1)
         return
     
     # Ask for visibility: private or public (shared is not an option during creation)
-    visibility = input("Should this list be private or public? ").lower().strip()
+    visibility = input(style_input_prompt("Should this list be private or public? ")).lower().strip()
     if visibility not in ["private", "public"]:
-        print("❌ Invalid visibility option. Please choose either 'private' or 'public'.")
+        print(style_error("❌ Invalid visibility option. Please choose either 'private' or 'public'."))
+        sleep(1)
         return
     
     query = "INSERT INTO Stock_List (user_id, name, visibility) VALUES (%s, %s, %s) RETURNING list_id;"
     cursor.execute(query, (user_id, name, visibility))
     list_id = cursor.fetchone()[0]
     conn.commit()
-    print(f"✅ Stock list '{name}' created successfully.")
+    print(style_success(f"✅ Stock list '{name}' created successfully."))
+    sleep(1)
 
 def open_stock_list(owned_lists, shared_lists):
-    # Build a dictionary where the key is the lowercased list name and the value is a list of tuples:
-    # (list_id, is_creator, creator_username)
+    """
+    Open a stock list based on user input.
+    If multiple lists have the same name, prompt the user to specify the creator.
+    """
     all_lists = {}
     for lst in owned_lists:
         key = lst[1].lower()
@@ -100,14 +118,14 @@ def open_stock_list(owned_lists, shared_lists):
         key = lst[1].lower()
         all_lists.setdefault(key, []).append((lst[0], False, lst[3]))
     
-    name = input("Enter the name of the stock list you want to open: ").lower().strip()
+    name = input(style_input_prompt("Enter the name of the stock list you want to open: ")).lower().strip()
     if name in all_lists:
         options = all_lists[name]
         if len(options) > 1:
-            print("Multiple stock lists found with the same name. Please specify the creator:")
+            print(style_label("Multiple stock lists found with the same name. Please specify the creator:"))
             for option in options:
-                print(f"Creator: {option[2]}")
-            creator_input = input("Enter the creator's username: ").lower().strip()
+                print(style_info(f"Creator: {option[2]}"))
+            creator_input = input(style_input_prompt("Enter the creator's username: ")).lower().strip()
             chosen = None
             for option in options:
                 if option[2].lower() == creator_input:
@@ -117,12 +135,11 @@ def open_stock_list(owned_lists, shared_lists):
                 list_id, is_creator, _ = chosen
                 stock_list_menu.view_stock_list_menu(list_id, is_creator)
             else:
-                print("❌ No matching creator found for that list name.")
+                print(style_error("❌ No matching creator found for that list name."))
                 sleep(1)
         else:
             list_id, is_creator, _ = options[0]
             stock_list_menu.view_stock_list_menu(list_id, is_creator)
     else:
-        print("❌ Stock list not found. Please check the name and try again.")
+        print(style_error("❌ Stock list not found. Please check the name and try again."))
         sleep(1)
-
